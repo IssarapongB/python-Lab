@@ -1,99 +1,94 @@
-from Student import Student
-from Subject import Subject
-from StudentService import StudentService
-from SubjectService import SubjectService
-from EnrollmentService import EnrollmentService
+import random
+# ดึงแค่ User มาก็พอ เพราะ User ถือ Account อยู่แล้ว
+from user import User
+
+# ตัวแปรเก็บ User ทั้งหมด {username: UserObject}
+all_members = {}
+current_user = None
 
 
-# --- ส่วนตั้งค่าข้อมูลเริ่มต้น (Mock Data) ---
-def load_initial_data(std_service, sub_service):
-    # เพิ่มวิชา
-    sub_service.add_subject(Subject('101', 'Python Programming', 3, 5000))
-    sub_service.add_subject(Subject('102', 'Web Development', 3, 4500))
-    sub_service.add_subject(Subject('103', 'Data Science', 3, 6000))
+def registration():
+    print("--- สมัครสมาชิก ---")
+    name = input("ชื่อ: ")
+    username = input("Username: ")
+    password = input("Password: ")
 
-    # เพิ่มนักเรียน
-    std_service.add_student(Student('S01', 'Somchai', 'som', '1234'))
-    std_service.add_student(Student('S02', 'Somsri', 'sri', '5678'))
+    if username in all_members:
+        print("ชื่อนี้มีคนใช้แล้ว")
+    else:
+        # สร้าง User ใหม่
+        new_user = User(name, username, password)
+        all_members[username] = new_user
+        print("สมัครเสร็จสิ้น")
 
 
-# --- ฟังก์ชันหลักของโปรแกรม ---
-def main():
-    # สร้าง Service เตรียมไว้ใช้งาน
-    student_sv = StudentService()
-    subject_sv = SubjectService()
-    enroll_sv = EnrollmentService()
+def login():
+    global current_user
+    print("--- เข้าสู่ระบบ ---")
+    user_in = input("Username: ")
+    pass_in = input("Password: ")
 
-    # โหลดข้อมูลตัวอย่าง
-    load_initial_data(student_sv, subject_sv)
+    # เช็ค Username
+    if user_in in all_members:
+        real_user = all_members[user_in]
 
+        # [จุดที่แก้] เช็ค Password ตรงๆ แบบไม่ Encapsulate
+        # เปรียบเทียบรหัสที่พิมพ์มา กับ รหัสใน object เลย
+        if real_user.password == pass_in:
+            print("Login สำเร็จ!")
+            current_user = real_user
+            user_menu()
+        else:
+            print("รหัสผ่านผิด")
+    else:
+        print("ไม่พบผู้ใช้นี้")
+
+
+def user_menu():
     while True:
-        print("\n" + "=" * 30)
-        print("   UNIVERSITY SYSTEM v2.0")
-        print("=" * 30)
-        print("1. Register New Student")
-        print("2. Show All Students")
-        print("3. Search Student")
-        print("4. Show All Subjects")
-        print("5. Enroll (Register Subject)")
-        print("6. Show Enrollment History")
-        print("0. Exit")
+        # เข้าถึงข้อมูลตรงๆ (ไม่ผ่านฟังก์ชัน get)
+        print(f"\n--- สวัสดีคุณ {current_user.name} ---")
+        print("1. เปิดบัญชีใหม่")
+        print("2. ดูข้อมูลบัญชี")
+        print("3. ฝากเงิน")
+        print("9. ออกจากระบบ")
 
-        choice = input("Select Menu: ")
+        choice = input("เลือก: ")
 
         if choice == '1':
-            print("\n--- Register Student ---")
-            s_id = input("ID: ")
-            name = input("Name: ")
-            user = input("Username: ")
-            pw = input("Password: ")
-            # สร้าง object Student
-            new_std = Student(s_id, name, user, pw)
-            # ส่งให้ Service บันทึก
-            student_sv.add_student(new_std)
+            # สุ่มเลขบัญชี
+            acc_no = str(random.randint(10000, 99999))
+            current_user.create_account(acc_no)
+            print(f"เปิดบัญชีเบอร์ {acc_no} เรียบร้อย")
 
         elif choice == '2':
-            student_sv.list_all_students()
+            # วนลูปดูบัญชีที่มีในตัว current_user ตรงๆ
+            for acc_no, acc_obj in current_user.accounts.items():
+                print(f"เบอร์: {acc_no} | เงิน: {acc_obj.balance} บาท")
 
         elif choice == '3':
-            keyword = input("Enter name to search: ")
-            student_sv.search_by_name(keyword)
+            acc_no = input("ฝากเข้าเบอร์บัญชีไหน: ")
+            if acc_no in current_user.accounts:
+                amt = float(input("จำนวนเงิน: "))
 
-        elif choice == '4':
-            subject_sv.list_all_subjects()
-
-        elif choice == '5':
-            print("\n--- Enrollment Process ---")
-            # 1. หาตัวนักเรียนก่อน
-            s_id = input("Enter Student ID: ")
-            found_std = student_sv.get_student_by_id(s_id)
-
-            if found_std:
-                print(f"Student Selected: {found_std.name}")
-                # 2. หาวิชาที่จะลง
-                sub_id = input("Enter Subject Code (e.g., 101): ")
-                found_sub = subject_sv.get_subject_by_id(sub_id)
-
-                if found_sub:
-                    print(f"Subject Selected: {found_sub.name} ({found_sub.fee} THB)")
-                    confirm = input("Confirm? (y/n): ")
-                    if confirm.lower() == 'y':
-                        # 3. สั่งให้ Service ทำการลงทะเบียน
-                        enroll_sv.enroll(found_std, found_sub)
-                else:
-                    print("Error: Subject not found!")
+                # เรียกใช้ object Account ให้ทำงาน
+                current_user.accounts[acc_no].deposit(amt, "ฝากเงินสด")
+                print("ฝากเงินเรียบร้อย")
             else:
-                print("Error: Student ID not found!")
+                print("คุณไม่มีบัญชีเบอร์นี้")
 
-        elif choice == '6':
-            enroll_sv.list_all_enrollments()
-
-        elif choice == '0':
-            print("Good Bye!")
+        elif choice == '9':
             break
-        else:
-            print("Invalid choice!")
 
 
-if __name__ == '__main__':
-    main()
+# เริ่มโปรแกรมตรงนี้
+if __name__ == "__main__":
+    while True:
+        print("\n--- Main Menu ---")
+        print("1. สมัครสมาชิก")
+        print("2. เข้าสู่ระบบ")
+        cmd = input("เลือก: ")
+        if cmd == '1':
+            registration()
+        elif cmd == '2':
+            login()
